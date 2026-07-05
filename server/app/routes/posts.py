@@ -19,7 +19,16 @@ from flask import Blueprint, jsonify, request
 from sqlalchemy.orm import selectinload
 
 from app.db import SessionLocal, get_engine
-from app.models import Post, PostImage
+from app.models import (
+    Annotation,
+    Post,
+    PostImage,
+    category_enum,
+    consumer_signal_enum,
+    origin_enum,
+    recommended_action_enum,
+    trend_type_enum,
+)
 from app.phash import UnreadableImageError, compute_phash_signed, find_near_duplicates
 from app.providers import registry
 from app.security import session_or_token_required, session_required
@@ -28,6 +37,28 @@ posts_bp = Blueprint("posts", __name__, url_prefix="/api")
 
 _PIPELINE_STEPS = ("ocr", "translate", "extract", "embed")
 _ENTITY_KEYS = ("text_zh", "text_en", "type", "confidence")
+
+# Locked v1 taxonomy (schema.sql is the source of truth; the ENUM objects in
+# app.models mirror it, so validation lists come from there, never hardcoded).
+_ANNOTATION_ENUM_FIELDS = {
+    "category": category_enum,
+    "trend_type": trend_type_enum,
+    "consumer_signal": consumer_signal_enum,
+    "recommended_action": recommended_action_enum,
+    "origin": origin_enum,
+}
+_ANNOTATION_FIELDS = (*_ANNOTATION_ENUM_FIELDS, "notes")
+
+
+def _annotation_json(post: Post) -> dict | None:
+    """Annotation payload for a post, or None when not yet annotated."""
+    annotation = post.annotation
+    if annotation is None:
+        return None
+    payload = {"post_id": str(post.id), "notes": annotation.notes}
+    for field in _ANNOTATION_ENUM_FIELDS:
+        payload[field] = getattr(annotation, field)
+    return payload
 
 
 def _post_json(post: Post) -> dict:
@@ -51,6 +82,7 @@ def _post_json(post: Post) -> dict:
             }
             for image in post.images
         ],
+        "annotation": _annotation_json(post),
     }
     for step in _PIPELINE_STEPS:
         payload[f"{step}_status"] = getattr(post, f"{step}_status")
@@ -73,19 +105,36 @@ def get_post(post_id: uuid.UUID):
 @posts_bp.get("/posts")
 @session_required
 def list_posts():
-    """Inbox listing: newest first, per-step status + error surface."""
+    """Inbox/Triage listing: per-step status + error surface, optional
+    has_annotation filter and captured_at ordering (default newest first)."""
     limit = request.args.get("limit", default=50, type=int)
     offset = request.args.get("offset", default=0, type=int)
     limit = max(0, min(limit if limit is not None else 50, 200))
     offset = max(0, offset if offset is not None else 0)
 
+    has_annotation = request.args.get("has_annotation")
+    if has_annotation is not None and has_annotation not in ("true", "false"):
+        return jsonify(error="has_annotation must be 'true' or 'false'"), 400
+    order = request.args.get("order", default="desc")
+    if order not in ("asc", "desc"):
+        return jsonify(error="order must be 'asc' or 'desc'"), 400
+
     get_engine()
     session = SessionLocal()
-    total = session.query(Post).count()
+    query = session.query(Post)
+    if has_annotation == "true":
+        query = query.filter(Post.annotation.has())
+    elif has_annotation == "false":
+        query = query.filter(~Post.annotation.has())
+    total = query.count()
+    if order == "asc":
+        ordering = (Post.captured_at.asc(), Post.created_at.asc())
+    else:
+        ordering = (Post.captured_at.desc(), Post.created_at.desc())
     posts = (
-        session.query(Post)
+        query
         .options(selectinload(Post.images), selectinload(Post.annotation))
-        .order_by(Post.captured_at.desc(), Post.created_at.desc())
+        .order_by(*ordering)
         .limit(limit)
         .offset(offset)
         .all()
@@ -274,6 +323,52 @@ def update_post(post_id: uuid.UUID):
 
         embed_post.delay(str(post_id), True)
     return jsonify(payload)
+
+
+@posts_bp.put("/posts/<uuid:post_id>/annotation")
+@session_required
+def upsert_annotation(post_id: uuid.UUID):
+    """UPSERT the single annotation row for a post (Triage save, M4 contract).
+
+    Any subset of {category, trend_type, consumer_signal, recommended_action,
+    origin, notes} is accepted; keys absent from the body are left untouched,
+    an explicit null clears a field (skip = NULL is legal taxonomy)."""
+    body = request.get_json(silent=True)
+    if not isinstance(body, dict):
+        return jsonify(error="request body must be a JSON object"), 400
+    for field, value in body.items():
+        if field not in _ANNOTATION_FIELDS:
+            return jsonify(
+                error=f"unknown field '{field}': must be one of {list(_ANNOTATION_FIELDS)}"
+            ), 400
+        if value is None:
+            continue
+        if field == "notes":
+            if not isinstance(value, str):
+                return jsonify(error="notes must be a string or null"), 400
+        elif value not in _ANNOTATION_ENUM_FIELDS[field].enums:
+            return jsonify(
+                error=f"invalid {field} '{value}': must be one of "
+                f"{list(_ANNOTATION_ENUM_FIELDS[field].enums)} or null"
+            ), 400
+
+    get_engine()
+    session = SessionLocal()
+    post = session.get(Post, post_id)
+    if post is None:
+        return jsonify(error="post not found"), 404
+
+    annotation = post.annotation
+    if annotation is None:
+        # Assign through the relationship (not session.add) so the already-
+        # loaded post.annotation is populated for the response payload
+        # (sessions run with expire_on_commit=False).
+        annotation = Annotation(post_id=post.id)
+        post.annotation = annotation
+    for field, value in body.items():
+        setattr(annotation, field, value)
+    session.commit()
+    return jsonify(_annotation_json(post)), 200
 
 
 @posts_bp.patch("/posts/<uuid:post_id>/images/<uuid:image_id>")
