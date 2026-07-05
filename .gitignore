@@ -1,0 +1,23 @@
+# Secrets — never committed (CLAUDE.md §6 auth)
+.env
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# Node
+node_modules/
+client/dist/
+
+# Media & data (private volume in production; local dev copies)
+media/
+*.dump
+
+# Editor / OS
+.DS_Store
+
+# Pre-git backup copies (protected by git history now)
+*.bak-*
