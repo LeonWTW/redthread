@@ -5,6 +5,7 @@ import Inbox from './pages/Inbox.jsx'
 import Login from './pages/Login.jsx'
 import Placeholder from './pages/Placeholder.jsx'
 import PostView from './pages/PostView.jsx'
+import Triage from './pages/Triage.jsx'
 import './app.css'
 
 // The five screens: Inbox, Triage, Library, Report Editor, Export Preview —
@@ -27,7 +28,7 @@ export default function App() {
         <Route element={<Shell />}>
           <Route path="/" element={<Capture />} />
           <Route path="/inbox" element={<Inbox />} />
-          <Route path="/triage" element={<Placeholder title="Triage" />} />
+          <Route path="/triage" element={<Triage />} />
           <Route path="/library" element={<Placeholder title="Library" />} />
           <Route path="/reports" element={<Placeholder title="Report Editor" />} />
           <Route path="/export" element={<Placeholder title="Export Preview" />} />
