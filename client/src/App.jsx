@@ -6,6 +6,8 @@ import Library from './pages/Library.jsx'
 import Login from './pages/Login.jsx'
 import Placeholder from './pages/Placeholder.jsx'
 import PostView from './pages/PostView.jsx'
+import ReportEditor from './pages/ReportEditor.jsx'
+import Reports from './pages/Reports.jsx'
 import Triage from './pages/Triage.jsx'
 import './app.css'
 
@@ -31,7 +33,8 @@ export default function App() {
           <Route path="/inbox" element={<Inbox />} />
           <Route path="/triage" element={<Triage />} />
           <Route path="/library" element={<Library />} />
-          <Route path="/reports" element={<Placeholder title="Report Editor" />} />
+          <Route path="/reports" element={<Reports />} />
+          <Route path="/reports/:id" element={<ReportEditor />} />
           <Route path="/export" element={<Placeholder title="Export Preview" />} />
           <Route path="/posts/:id" element={<PostView />} />
         </Route>

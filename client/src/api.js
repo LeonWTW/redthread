@@ -33,6 +33,14 @@ export function postJson(path, body) {
   })
 }
 
+export function patchJson(path, body) {
+  return api(path, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+}
+
 export function postForm(path, formData) {
   // No Content-Type header: the browser sets the multipart boundary.
   return api(path, { method: 'POST', body: formData })

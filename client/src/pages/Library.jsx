@@ -1,12 +1,15 @@
 import { useCallback, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../api.js'
+import { addToTray } from '../citationTray.js'
 
 // Library: semantic search over the corpus (COVERAGE loop — answer
 // "what is XHS saying about X?" in 30 seconds, with evidence).
 // Queries pass through as-is: English, Chinese, or mixed.
 
 const SNIPPET_LEN = 200
+// Tray snippets match the server's block-citation snippet length.
+const TRAY_SNIPPET_LEN = 80
 
 // consumer_signal enum -> Chinese term (source Chinese always shown).
 const SIGNAL_ZH = {
@@ -20,6 +23,11 @@ const SIGNAL_ZH = {
 function snippet(text) {
   if (!text) return ''
   return text.length > SNIPPET_LEN ? `${text.slice(0, SNIPPET_LEN)}…` : text
+}
+
+function traySnippet(text) {
+  if (!text) return ''
+  return text.length > TRAY_SNIPPET_LEN ? `${text.slice(0, TRAY_SNIPPET_LEN)}…` : text
 }
 
 function formatCapturedAt(iso) {
@@ -55,7 +63,7 @@ function AnnotationBadges({ annotation }) {
   )
 }
 
-function ResultCard({ result, onDelete, deleting, deleteError }) {
+function ResultCard({ result, onDelete, onAddToTray, trayMsg, deleting, deleteError }) {
   const zh = snippet(result.corrected_text || result.full_ocr_text || result.caption_raw)
   const en = snippet(result.final_translation || result.machine_translation)
   return (
@@ -78,13 +86,13 @@ function ResultCard({ result, onDelete, deleting, deleteError }) {
         {!zh && !en && <p className="hint">(no text)</p>}
         <AnnotationBadges annotation={result.annotation} />
         <div className="library-actions">
-          {/* TODO(plan 001 M6): wire "Add to report" to the report builder. */}
-          <button type="button" disabled title="Report builder arrives in the next milestone">
+          <button type="button" onClick={() => onAddToTray(result)}>
             Add to report
           </button>
           <button type="button" onClick={() => onDelete(result.id)} disabled={deleting}>
             {deleting ? 'Deleting…' : 'Delete'}
           </button>
+          {trayMsg && <span className="hint">{trayMsg}</span>}
         </div>
         {deleteError && <p className="error">{deleteError}</p>}
       </div>
@@ -100,6 +108,7 @@ export default function Library() {
   const [error, setError] = useState('')
   const [deletingId, setDeletingId] = useState(null)
   const [deleteErrors, setDeleteErrors] = useState({}) // post id -> message
+  const [trayMsgs, setTrayMsgs] = useState({}) // post id -> confirmation
 
   const handleError = useCallback(
     (err, apply) => {
@@ -128,6 +137,21 @@ export default function Library() {
     } finally {
       setSearching(false)
     }
+  }
+
+  // Push the card into the localStorage citation tray, ready to attach as a
+  // citation in the Report Editor. Dedupe by post_id.
+  function addResultToTray(result) {
+    const { added } = addToTray({
+      post_id: result.id,
+      zh_snippet: traySnippet(result.corrected_text || result.full_ocr_text || result.caption_raw),
+      en_snippet: traySnippet(result.final_translation || result.machine_translation),
+      first_image_url: result.first_image_url || null,
+    })
+    setTrayMsgs((prev) => ({
+      ...prev,
+      [result.id]: added ? 'Added to citation tray' : 'Already in citation tray',
+    }))
   }
 
   async function deletePost(id) {
@@ -173,6 +197,8 @@ export default function Library() {
               key={result.id}
               result={result}
               onDelete={deletePost}
+              onAddToTray={addResultToTray}
+              trayMsg={trayMsgs[result.id]}
               deleting={deletingId === result.id}
               deleteError={deleteErrors[result.id]}
             />
