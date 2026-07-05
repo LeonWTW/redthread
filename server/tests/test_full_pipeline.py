@@ -104,6 +104,9 @@ class FakeMediaStore(MediaStore):
     def exists(self, relative_path: str) -> bool:
         return relative_path in self.files
 
+    def delete(self, relative_path: str) -> None:
+        self.files.pop(relative_path, None)
+
 
 class Fakes:
     def __init__(self):

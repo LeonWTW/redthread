@@ -36,11 +36,13 @@ def create_app(config_overrides: dict | None = None) -> Flask:
     from .routes.capture import capture_bp
     from .routes.media import media_bp
     from .routes.posts import posts_bp
+    from .routes.search import search_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(capture_bp)
     app.register_blueprint(posts_bp)
     app.register_blueprint(media_bp)
+    app.register_blueprint(search_bp)
 
     @app.get("/healthz")
     def healthz():

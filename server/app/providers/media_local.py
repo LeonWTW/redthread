@@ -42,3 +42,6 @@ class LocalMediaStore(MediaStore):
 
     def exists(self, relative_path: str) -> bool:
         return self._resolve(relative_path).is_file()
+
+    def delete(self, relative_path: str) -> None:
+        self._resolve(relative_path).unlink(missing_ok=True)

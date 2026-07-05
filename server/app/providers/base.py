@@ -121,3 +121,8 @@ class MediaStore(ABC):
 
     @abstractmethod
     def exists(self, relative_path: str) -> bool: ...
+
+    @abstractmethod
+    def delete(self, relative_path: str) -> None:
+        """Remove one stored file. A missing file is a no-op (delete is
+        idempotent so post deletion can be retried safely)."""

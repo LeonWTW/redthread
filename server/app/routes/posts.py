@@ -9,6 +9,12 @@ M3 contract (plan 001 tasks 3.4/3.5):
 - PATCH /api/posts/<id>/images/<image_id> stores a per-image corrected_ocr;
   the post-level corrected_text remains the analyst's authoritative aggregate.
 - GET /api/posts lists posts for the Inbox (captured_at DESC).
+
+M5 (plan 001 task 5.1):
+- DELETE /api/posts/<id> removes the row (images + annotation cascade), its
+  media files, and its Qdrant point. A post cited in a report CANNOT be
+  deleted (report_citations FK is ON DELETE RESTRICT by design): the response
+  is 409 carrying the citing report titles, never a workaround.
 """
 
 from __future__ import annotations
@@ -16,13 +22,19 @@ from __future__ import annotations
 import uuid
 
 from flask import Blueprint, jsonify, request
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
+
+from app import vectors
 
 from app.db import SessionLocal, get_engine
 from app.models import (
     Annotation,
     Post,
     PostImage,
+    Report,
+    ReportBlock,
+    ReportCitation,
     category_enum,
     consumer_signal_enum,
     origin_enum,
@@ -59,6 +71,28 @@ def _annotation_json(post: Post) -> dict | None:
     for field in _ANNOTATION_ENUM_FIELDS:
         payload[field] = getattr(annotation, field)
     return payload
+
+
+def _post_card(post: Post) -> dict:
+    """Card payload shared by the Inbox listing and Library search results,
+    so the two screens can never drift apart. Requires images + annotation
+    to be loaded (selectinload) to avoid N+1 queries."""
+    images = sorted(post.images, key=lambda image: image.sort_order)
+    first_image = images[0] if images else None
+    card = {
+        "id": str(post.id),
+        "captured_at": post.captured_at.isoformat() if post.captured_at else None,
+        "caption_raw": post.caption_raw[:120] if post.caption_raw else None,
+        "xhs_note_id": post.xhs_note_id,
+        "image_count": len(images),
+        "first_image_url": ("/media/" + first_image.file_path) if first_image else None,
+        "has_annotation": post.annotation is not None,
+    }
+    for step in _PIPELINE_STEPS:
+        card[f"{step}_status"] = getattr(post, f"{step}_status")
+        card[f"{step}_error_type"] = getattr(post, f"{step}_error_type")
+        card[f"{step}_error_message"] = getattr(post, f"{step}_error_message")
+    return card
 
 
 def _post_json(post: Post) -> dict:
@@ -140,25 +174,62 @@ def list_posts():
         .all()
     )
 
-    items = []
-    for post in posts:
-        images = sorted(post.images, key=lambda image: image.sort_order)
-        first_image = images[0] if images else None
-        item = {
-            "id": str(post.id),
-            "captured_at": post.captured_at.isoformat() if post.captured_at else None,
-            "caption_raw": post.caption_raw[:120] if post.caption_raw else None,
-            "xhs_note_id": post.xhs_note_id,
-            "image_count": len(images),
-            "first_image_url": ("/media/" + first_image.file_path) if first_image else None,
-            "has_annotation": post.annotation is not None,
-        }
-        for step in _PIPELINE_STEPS:
-            item[f"{step}_status"] = getattr(post, f"{step}_status")
-            item[f"{step}_error_type"] = getattr(post, f"{step}_error_type")
-            item[f"{step}_error_message"] = getattr(post, f"{step}_error_message")
-        items.append(item)
-    return jsonify(posts=items, total=total)
+    return jsonify(posts=[_post_card(post) for post in posts], total=total)
+
+
+def _citing_reports(session, post_id: uuid.UUID) -> list[dict]:
+    """Reports whose claim blocks cite this post (drives the 409 payload)."""
+    rows = (
+        session.query(Report.id, Report.title)
+        .join(ReportBlock, ReportBlock.report_id == Report.id)
+        .join(ReportCitation, ReportCitation.block_id == ReportBlock.id)
+        .filter(ReportCitation.post_id == post_id)
+        .distinct()
+        .all()
+    )
+    return [{"id": str(report_id), "title": title} for report_id, title in rows]
+
+
+@posts_bp.delete("/posts/<uuid:post_id>")
+@session_required
+def delete_post(post_id: uuid.UUID):
+    """Delete a post plus its media files and Qdrant point.
+
+    Order matters: the DB row is the source of truth, so it goes first; media
+    and vector cleanup follow (both idempotent, so a partial failure can be
+    retried). Cited posts are protected by the ON DELETE RESTRICT FK — checked
+    up front for a friendly 409, with IntegrityError as belt-and-braces
+    against a citation added concurrently."""
+    get_engine()
+    session = SessionLocal()
+    post = session.get(Post, post_id)
+    if post is None:
+        return jsonify(error="post not found"), 404
+
+    def cited_response(reports: list[dict]):
+        titles = ", ".join(report["title"] for report in reports)
+        return jsonify(
+            error=f"post is cited in report(s): {titles}", reports=reports
+        ), 409
+
+    reports = _citing_reports(session, post_id)
+    if reports:
+        return cited_response(reports)
+
+    file_paths = [image.file_path for image in post.images]
+    try:
+        session.delete(post)
+        session.commit()
+    except IntegrityError:
+        # Citation added between our check and the delete: the RESTRICT FK wins.
+        session.rollback()
+        return cited_response(_citing_reports(session, post_id))
+
+    media_store = registry.get_media_store()
+    for file_path in file_paths:
+        media_store.delete(file_path)
+    vectors.delete_post(str(post_id))  # tolerates an absent point/collection
+    return "", 204
 
 
 @posts_bp.post("/posts/<uuid:post_id>/images")
