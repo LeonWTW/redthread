@@ -1,11 +1,16 @@
-"""RedThread Flask application factory.
+"""RedThread Flask application factory."""
 
-M0 scaffold: health check only. M1 adds auth, capture, media, and display routes.
-"""
+from __future__ import annotations
 
 import os
 
 from flask import Flask, jsonify
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+
+# Shared limiter; attached to the app in create_app. routes/auth.py applies
+# the per-endpoint login limit (CLAUDE.md §6: rate-limit the login endpoint).
+limiter = Limiter(key_func=get_remote_address, storage_uri="memory://")
 
 
 def create_app(config_overrides: dict | None = None) -> Flask:
@@ -20,6 +25,22 @@ def create_app(config_overrides: dict | None = None) -> Flask:
     )
     if config_overrides:
         app.config.update(config_overrides)
+
+    limiter.init_app(app)
+
+    from . import db
+
+    db.init_app(app)
+
+    from .routes.auth import auth_bp
+    from .routes.capture import capture_bp
+    from .routes.media import media_bp
+    from .routes.posts import posts_bp
+
+    app.register_blueprint(auth_bp)
+    app.register_blueprint(capture_bp)
+    app.register_blueprint(posts_bp)
+    app.register_blueprint(media_bp)
 
     @app.get("/healthz")
     def healthz():

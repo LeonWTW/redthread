@@ -8,6 +8,7 @@ celery = Celery(
     "redthread",
     broker=os.environ.get("REDIS_URL", "redis://redis:6379/0"),
     backend=os.environ.get("REDIS_URL", "redis://redis:6379/0"),
+    include=["app.pipeline.tasks"],
 )
 
 celery.conf.update(
