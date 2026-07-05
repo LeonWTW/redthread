@@ -27,4 +27,6 @@ def serve_media(relpath: str):
         # from a missing file to the client.
         return jsonify(error="file not found"), 404
     mimetype = mimetypes.guess_type(relpath)[0] or "application/octet-stream"
-    return Response(file_bytes, mimetype=mimetype)
+    response = Response(file_bytes, mimetype=mimetype)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    return response

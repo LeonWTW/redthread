@@ -1,0 +1,8 @@
+# Keep the image lean and defend against secret leakage into build context.
+.env
+.env.*
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+tests/

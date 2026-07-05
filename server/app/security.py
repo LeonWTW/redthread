@@ -2,7 +2,10 @@
 
 Single analyst account seeded from env vars (no registration, no reset, no
 user CRUD). Session cookie required on ALL routes including media; machine
-clients use the long-lived API_TOKEN header on POST /api/capture only.
+clients use the long-lived API_TOKEN header on the CAPTURE FLOW endpoints
+only: POST /api/capture, POST /api/posts/<id>/images, /process, and
+/retry/<step> — a machine client that submits a capture must be able to
+finish and re-trigger it (adjudicated at M8; everything else is session-only).
 """
 
 from __future__ import annotations
