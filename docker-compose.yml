@@ -1,0 +1,83 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-redthread}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
+      POSTGRES_DB: ${POSTGRES_DB:-redthread}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # schema.sql is the single source of truth; applied on first boot.
+      - ./schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-redthread} -d ${POSTGRES_DB:-redthread}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  qdrant:
+    image: qdrant/qdrant:v1.12.4
+    volumes:
+      - qdrantdata:/qdrant/storage
+    ports:
+      - "127.0.0.1:6333:6333"
+
+  api:
+    build: ./server
+    env_file: .env
+    environment:
+      MEDIA_ROOT: /data/media
+    volumes:
+      - ./server:/srv/app
+      - mediadata:/data/media
+    ports:
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+    command: gunicorn --bind 0.0.0.0:8000 --workers 2 --timeout 120 "app:create_app()"
+
+  worker:
+    build: ./server
+    env_file: .env
+    environment:
+      MEDIA_ROOT: /data/media
+    volumes:
+      - ./server:/srv/app
+      - mediadata:/data/media
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: celery -A app.pipeline.celery_app.celery worker --loglevel=info --concurrency=2
+
+  client:
+    image: node:24-alpine
+    working_dir: /srv/client
+    volumes:
+      - ./client:/srv/client
+    ports:
+      - "127.0.0.1:5173:5173"
+    depends_on:
+      - api
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+
+volumes:
+  pgdata:
+  qdrantdata:
+  mediadata:
