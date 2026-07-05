@@ -14,8 +14,15 @@ h3 { font-size: 0.85rem; color: #555; margin-bottom: 0.25rem; }
 
 .stack { display: flex; flex-direction: column; gap: 0.75rem; }
 .stack label { display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.9rem; }
-.stack input, .stack textarea { font: inherit; padding: 0.4rem; }
-.stack button { align-self: flex-start; font: inherit; padding: 0.4rem 1rem; cursor: pointer; }
+/* Thumb-friendly targets: >=44px tall inputs and buttons (iPhone Safari). */
+.stack input, .stack textarea { font: inherit; padding: 0.6rem; min-height: 1.5rem; }
+.stack button {
+  align-self: stretch;
+  font: inherit;
+  padding: 0.7rem 1rem;
+  min-height: 2.75rem;
+  cursor: pointer;
+}
 
 .error { color: #b00020; white-space: pre-wrap; }
 .hint { color: #666; font-size: 0.85rem; }
@@ -35,3 +42,26 @@ h3 { font-size: 0.85rem; color: #555; margin-bottom: 0.25rem; }
 @media (max-width: 800px) {
   .columns { flex-direction: column; }
 }
+
+/* Capture page: three stacked sections, single column at 390px. */
+.section { margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid #ddd; }
+.section:first-of-type { margin-top: 0.5rem; border-top: none; padding-top: 0; }
+
+.file-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.4rem; }
+.file-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; font-size: 0.85rem; }
+.file-name { flex: 1; min-width: 8rem; overflow-wrap: anywhere; }
+.file-row button { min-height: 2.25rem; padding: 0.3rem 0.9rem; font: inherit; cursor: pointer; }
+.file-error { flex-basis: 100%; font-size: 0.8rem; }
+
+/* Soft near-duplicate / already-captured notice: warn, never block. */
+.notice-warn {
+  background: #fff8e1;
+  border: 1px solid #f0c36d;
+  border-radius: 4px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.85rem;
+}
+.notice-warn ul { margin: 0.25rem 0 0; padding-left: 1.1rem; }
+
+.csv-result { font-size: 0.85rem; }
+.csv-result ul { margin: 0.25rem 0 0.5rem; padding-left: 1.1rem; }
