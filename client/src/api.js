@@ -9,7 +9,7 @@ export class ApiError extends Error {
   }
 }
 
-export async function api(path, options = {}) {
+async function request(path, options) {
   const res = await fetch(path, { credentials: 'same-origin', ...options })
   if (!res.ok) {
     let message = `Request failed (${res.status})`
@@ -21,8 +21,19 @@ export async function api(path, options = {}) {
     }
     throw new ApiError(message, res.status)
   }
+  return res
+}
+
+export async function api(path, options = {}) {
+  const res = await request(path, options)
   if (res.status === 204) return null
   return res.json()
+}
+
+// Like api() but returns the raw response body as text (e.g. exported HTML).
+export async function apiText(path, options = {}) {
+  const res = await request(path, options)
+  return res.text()
 }
 
 export function postJson(path, body) {

@@ -1,10 +1,10 @@
 import { BrowserRouter, Outlet, Route, Routes } from 'react-router-dom'
 import Nav from './components/Nav.jsx'
 import Capture from './pages/Capture.jsx'
+import ExportPreview from './pages/ExportPreview.jsx'
 import Inbox from './pages/Inbox.jsx'
 import Library from './pages/Library.jsx'
 import Login from './pages/Login.jsx'
-import Placeholder from './pages/Placeholder.jsx'
 import PostView from './pages/PostView.jsx'
 import ReportEditor from './pages/ReportEditor.jsx'
 import Reports from './pages/Reports.jsx'
@@ -12,8 +12,7 @@ import Triage from './pages/Triage.jsx'
 import './app.css'
 
 // The five screens: Inbox, Triage, Library, Report Editor, Export Preview —
-// and only those five. Unbuilt ones render a Placeholder until their
-// milestone. Nav appears on every page except Login.
+// and only those five. Nav appears on every page except Login.
 function Shell() {
   return (
     <>
@@ -35,7 +34,7 @@ export default function App() {
           <Route path="/library" element={<Library />} />
           <Route path="/reports" element={<Reports />} />
           <Route path="/reports/:id" element={<ReportEditor />} />
-          <Route path="/export" element={<Placeholder title="Export Preview" />} />
+          <Route path="/export" element={<ExportPreview />} />
           <Route path="/posts/:id" element={<PostView />} />
         </Route>
       </Routes>
