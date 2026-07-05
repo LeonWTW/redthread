@@ -1,21 +1,32 @@
 """Capture routes. Minimal single/multi-image capture in M1 (task 1.5); hardened in M2.
 
-POST /api/capture accepts multipart form data: 1..20 files under "images",
-optional "caption", optional "image_type" (applied to all files). Caption-only
-capture (no files) is allowed. Every accepted capture creates a posts row (plus
-post_images rows) and enqueues the OCR -> translate chain, returning 202.
+POST /api/capture accepts multipart form data: 0..20 files under "images",
+optional "caption", "image_type", "url", "defer_pipeline". A URL that parses to
+an already-captured xhs_note_id returns 200 already_captured and creates
+nothing. Every accepted capture creates a posts row (plus post_images rows with
+perceptual hashes), reports SOFT near-duplicate warnings, and enqueues the
+OCR -> translate chain (unless defer_pipeline=1), returning 202.
+
+POST /api/import/csv bulk-creates posts from analyst-curated rows (url,
+caption, captured_at, notes). This is manual curation import — the system
+never fetches any URL or performs automated collection.
 """
 
 from __future__ import annotations
 
+import csv
+import datetime
+import io
 import uuid
 
 from flask import Blueprint, jsonify, request
 
 from app.db import SessionLocal, get_engine
-from app.models import Post, PostImage
+from app.models import Annotation, Post, PostImage
+from app.phash import UnreadableImageError, compute_phash_signed, find_near_duplicates
 from app.providers import registry
-from app.security import session_or_token_required
+from app.security import session_or_token_required, session_required
+from app.xhs import parse_xhs_note_id
 
 capture_bp = Blueprint("capture", __name__, url_prefix="/api")
 
@@ -54,14 +65,25 @@ def _validate_file(storage) -> tuple[dict, int] | None:
     return None
 
 
+def _read_and_hash(storage) -> tuple[bytes, int]:
+    """Read a file's bytes and compute the signed 64-bit pHash.
+
+    Raises UnreadableImageError for bytes PIL cannot decode.
+    """
+    file_bytes = storage.read()
+    return file_bytes, compute_phash_signed(file_bytes)
+
+
 @capture_bp.post("/capture")
 @session_or_token_required
 def capture():
     files = [f for f in request.files.getlist("images") if f and f.filename]
     caption = (request.form.get("caption") or "").strip() or None
+    url = (request.form.get("url") or "").strip() or None
+    defer_pipeline = request.form.get("defer_pipeline") == "1"
 
-    if not files and not caption:
-        return jsonify(error="provide at least one image or a caption"), 400
+    if not files and not caption and not url:
+        return jsonify(error="provide at least one image, a caption, or a url"), 400
     if len(files) > MAX_FILES:
         return jsonify(error=f"too many files: max {MAX_FILES} images per capture"), 400
 
@@ -77,24 +99,133 @@ def capture():
             body, status = error
             return jsonify(**body), status
 
-    media_store = registry.get_media_store()
-    saved: list[str] = []  # file_path per file, in upload order
-    for storage in files:
-        suggested_name = f"{uuid.uuid4().hex}.{_extension(storage.filename)}"
-        saved.append(media_store.save(storage.read(), suggested_name))
-
     get_engine()
     session = SessionLocal()
-    post = Post(caption_raw=caption)
+
+    # URL dedup: an already-captured note id short-circuits; create NOTHING.
+    xhs_note_id = parse_xhs_note_id(url) if url else None
+    if xhs_note_id is not None:
+        existing = session.query(Post).filter_by(xhs_note_id=xhs_note_id).first()
+        if existing is not None:
+            return jsonify(already_captured=True, post_id=str(existing.id)), 200
+
+    # Read bytes and compute pHashes before anything is persisted.
+    payloads: list[tuple[bytes, int]] = []
+    for index, storage in enumerate(files):
+        try:
+            payloads.append(_read_and_hash(storage))
+        except UnreadableImageError as exc:
+            return jsonify(error=f"file {index} ({storage.filename}): {exc}"), 400
+
+    # Near-duplicate scan against EXISTING rows only (soft warnings).
+    near_duplicates = []
+    for index, (_, signed_hash) in enumerate(payloads):
+        matches = find_near_duplicates(session, signed_hash)
+        if matches:
+            near_duplicates.append({"image_index": index, "matches": matches})
+
+    media_store = registry.get_media_store()
+    saved: list[str] = []  # file_path per file, in upload order
+    for storage, (file_bytes, _) in zip(files, payloads):
+        suggested_name = f"{uuid.uuid4().hex}.{_extension(storage.filename)}"
+        saved.append(media_store.save(file_bytes, suggested_name))
+
+    post = Post(caption_raw=caption, source_url=url, xhs_note_id=xhs_note_id)
     post.images = [
-        PostImage(sort_order=index, image_type=image_type, file_path=file_path)
+        PostImage(
+            sort_order=index,
+            image_type=image_type,
+            file_path=file_path,
+            perceptual_hash=payloads[index][1],
+        )
         for index, file_path in enumerate(saved)
     ]
     session.add(post)
     session.commit()
     post_id = str(post.id)
 
-    from app.pipeline.tasks import enqueue_slice_chain
+    if not defer_pipeline:
+        from app.pipeline.tasks import enqueue_slice_chain
 
-    enqueue_slice_chain(post_id)
-    return jsonify(post_id=post_id), 202
+        enqueue_slice_chain(post_id)
+    return jsonify(post_id=post_id, near_duplicates=near_duplicates), 202
+
+
+@capture_bp.post("/import/csv")
+@session_required
+def import_csv():
+    """CSV import: analyst-curated rows. Columns (any order): url, caption,
+    captured_at, notes; only url is required per row. Row numbers are 1-based
+    data rows."""
+    upload = request.files.get("file")
+    if upload is None or not upload.filename:
+        return jsonify(error="provide a CSV file under the 'file' field"), 400
+
+    try:
+        text = upload.read().decode("utf-8-sig")
+    except UnicodeDecodeError:
+        return jsonify(error="CSV file must be UTF-8 encoded"), 400
+
+    reader = csv.DictReader(io.StringIO(text))
+    if reader.fieldnames is None or "url" not in reader.fieldnames:
+        return jsonify(error="CSV header row must include a 'url' column"), 400
+
+    get_engine()
+    session = SessionLocal()
+
+    created = 0
+    duplicates: list[dict] = []
+    errors: list[dict] = []
+
+    for row_number, row in enumerate(reader, start=1):
+        url = (row.get("url") or "").strip()
+        if not url:
+            errors.append({"row": row_number, "error": "missing url"})
+            continue
+
+        caption = (row.get("caption") or "").strip() or None
+        notes = (row.get("notes") or "").strip() or None
+        captured_at_raw = (row.get("captured_at") or "").strip()
+
+        captured_at = None
+        if captured_at_raw:
+            try:
+                captured_at = datetime.datetime.fromisoformat(
+                    captured_at_raw.replace("Z", "+00:00")
+                )
+            except ValueError:
+                errors.append(
+                    {"row": row_number, "error": f"invalid captured_at: {captured_at_raw!r}"}
+                )
+                continue
+
+        xhs_note_id = parse_xhs_note_id(url)
+        if xhs_note_id is not None:
+            existing = session.query(Post).filter_by(xhs_note_id=xhs_note_id).first()
+            if existing is not None:
+                duplicates.append({"row": row_number, "post_id": str(existing.id)})
+                continue
+
+        post = Post(source_url=url, xhs_note_id=xhs_note_id, caption_raw=caption)
+        if captured_at is not None:
+            post.captured_at = captured_at
+        session.add(post)
+        session.flush()
+        if notes:
+            annotation = (
+                session.query(Annotation).filter_by(post_id=post.id).first()
+            )
+            if annotation is None:
+                session.add(Annotation(post_id=post.id, notes=notes))
+            else:
+                annotation.notes = notes
+        session.commit()
+        created += 1
+
+        # Caption-only translation; URL-only rows have nothing to process yet.
+        if caption:
+            from app.pipeline.tasks import enqueue_slice_chain
+
+            enqueue_slice_chain(str(post.id))
+
+    return jsonify(created=created, duplicates=duplicates, errors=errors), 200
