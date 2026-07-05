@@ -34,6 +34,7 @@ def create_app(config_overrides: dict | None = None) -> Flask:
 
     from .routes.auth import auth_bp
     from .routes.capture import capture_bp
+    from .routes.export import export_bp
     from .routes.media import media_bp
     from .routes.posts import posts_bp
     from .routes.reports import reports_bp
@@ -44,6 +45,7 @@ def create_app(config_overrides: dict | None = None) -> Flask:
     app.register_blueprint(posts_bp)
     app.register_blueprint(media_bp)
     app.register_blueprint(reports_bp)
+    app.register_blueprint(export_bp)
     app.register_blueprint(search_bp)
 
     @app.get("/healthz")

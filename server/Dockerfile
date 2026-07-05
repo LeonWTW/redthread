@@ -5,6 +5,9 @@ WORKDIR /srv/app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Chromium for PDF export (M7; Playwright is the approved renderer).
+RUN playwright install --with-deps chromium
+
 COPY . .
 
 EXPOSE 8000
