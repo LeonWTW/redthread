@@ -2,6 +2,7 @@ import { BrowserRouter, Outlet, Route, Routes } from 'react-router-dom'
 import Nav from './components/Nav.jsx'
 import Capture from './pages/Capture.jsx'
 import Inbox from './pages/Inbox.jsx'
+import Library from './pages/Library.jsx'
 import Login from './pages/Login.jsx'
 import Placeholder from './pages/Placeholder.jsx'
 import PostView from './pages/PostView.jsx'
@@ -29,7 +30,7 @@ export default function App() {
           <Route path="/" element={<Capture />} />
           <Route path="/inbox" element={<Inbox />} />
           <Route path="/triage" element={<Triage />} />
-          <Route path="/library" element={<Placeholder title="Library" />} />
+          <Route path="/library" element={<Library />} />
           <Route path="/reports" element={<Placeholder title="Report Editor" />} />
           <Route path="/export" element={<Placeholder title="Export Preview" />} />
           <Route path="/posts/:id" element={<PostView />} />
