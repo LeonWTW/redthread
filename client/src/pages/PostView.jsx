@@ -10,16 +10,25 @@ function imageUrl(image) {
   return `/media/${image.file_path}`
 }
 
-function StepStatus({ post }) {
+function StepStatus({ post, onRetry }) {
   return (
     <p className="status-line">
       {STEPS.map((step) => {
         const status = post[`${step}_status`] || 'unknown'
+        const errorType = post[`${step}_error_type`]
         const errorMessage = post[`${step}_error_message`]
         return (
           <span key={step} className={`step step-${status}`}>
             {step}: {status}
             {status === 'failed' && errorMessage ? ` — ${errorMessage}` : ''}
+            {status === 'failed' && errorType === 'config_error' && (
+              <span className="hint"> (configuration problem — fix .env and retry)</span>
+            )}
+            {status === 'failed' && (
+              <button type="button" className="retry-btn" onClick={() => onRetry(step)}>
+                Retry
+              </button>
+            )}
           </span>
         )
       })}
@@ -39,7 +48,7 @@ export default function PostView() {
       const data = await api(`/api/posts/${id}`)
       setPost(data)
       setError('')
-      const active = ACTIVE.includes(data.ocr_status) || ACTIVE.includes(data.translate_status)
+      const active = STEPS.some((step) => ACTIVE.includes(data[`${step}_status`]))
       if (active) {
         timerRef.current = setTimeout(load, 2000)
       }
@@ -57,6 +66,33 @@ export default function PostView() {
     return () => clearTimeout(timerRef.current)
   }, [load])
 
+  async function retryStep(step) {
+    // Optimistic: retried step and everything downstream go back to pending,
+    // then polling resumes to pick up real statuses.
+    const fromIndex = STEPS.indexOf(step)
+    setPost((prev) => {
+      if (!prev) return prev
+      const next = { ...prev }
+      for (const s of STEPS.slice(fromIndex)) {
+        next[`${s}_status`] = 'pending'
+        next[`${s}_error_type`] = null
+        next[`${s}_error_message`] = null
+      }
+      return next
+    })
+    try {
+      await api(`/api/posts/${id}/retry/${step}`, { method: 'POST' })
+      clearTimeout(timerRef.current)
+      timerRef.current = setTimeout(load, 2000)
+    } catch (err) {
+      if (err.status === 401) {
+        navigate('/login')
+        return
+      }
+      setError(err.message)
+    }
+  }
+
   if (error) return <main className="page"><p className="error">{error}</p></main>
   if (!post) return <main className="page"><p>Loading…</p></main>
 
@@ -67,7 +103,7 @@ export default function PostView() {
   return (
     <main className="page">
       <h1>Post {post.id}</h1>
-      <StepStatus post={post} />
+      <StepStatus post={post} onRetry={retryStep} />
       <div className="columns">
         <section className="col">
           <h2>Images</h2>
@@ -95,6 +131,23 @@ export default function PostView() {
             <h3>{post.final_translation ? 'Final translation' : 'Machine translation'}</h3>
             <pre>{english || '(not yet available)'}</pre>
           </div>
+          {Array.isArray(post.entities) && post.entities.length > 0 && (
+            <div className="block">
+              <h3>Entities (model self-reported confidence)</h3>
+              <div className="chips">
+                {post.entities.map((entity, i) => (
+                  <span key={i} className="chip">
+                    {entity.text_zh}
+                    {entity.text_en ? ` (${entity.text_en})` : ''}{' '}
+                    <span className="chip-type">[{entity.type}]</span>
+                    {typeof entity.confidence === 'number'
+                      ? ` ${entity.confidence.toFixed(2)}`
+                      : ''}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
         </section>
       </div>
     </main>

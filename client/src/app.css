@@ -65,3 +65,92 @@ h3 { font-size: 0.85rem; color: #555; margin-bottom: 0.25rem; }
 
 .csv-result { font-size: 0.85rem; }
 .csv-result ul { margin: 0.25rem 0 0.5rem; padding-left: 1.1rem; }
+
+/* Top nav (all pages except Login). */
+.topnav {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  padding: 0.4rem 1rem;
+  border-bottom: 1px solid #ddd;
+}
+.nav-link {
+  padding: 0.35rem 0.6rem;
+  text-decoration: none;
+  color: #1a1a1a;
+  border-radius: 3px;
+  font-size: 0.9rem;
+}
+.nav-link:hover { background: #f0f0f0; }
+.nav-active { background: #1a1a1a; color: #fff; }
+.nav-active:hover { background: #1a1a1a; }
+.nav-logout {
+  margin-left: auto;
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 0.3rem 0.7rem;
+  cursor: pointer;
+}
+
+/* Inbox: pipeline status table. Status must be readable at a glance. */
+.table-wrap { overflow-x: auto; }
+.inbox-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  margin-top: 1rem;
+}
+.inbox-table th,
+.inbox-table td {
+  padding: 0.4rem 0.5rem;
+  border-bottom: 1px solid #eee;
+  text-align: left;
+  vertical-align: top;
+}
+.inbox-thumb { width: 48px; height: 48px; object-fit: cover; display: block; border: 1px solid #ddd; }
+.inbox-thumb-empty { width: 48px; height: 48px; background: #f5f5f5; border: 1px solid #eee; display: block; }
+.cell-time { white-space: nowrap; color: #555; }
+.cell-caption { max-width: 18rem; overflow-wrap: anywhere; }
+
+.badge {
+  display: inline-block;
+  padding: 0.1rem 0.45rem;
+  border-radius: 3px;
+  font-size: 0.75rem;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+.badge-pending { background: #f0f0f0; color: #555; border-color: #ddd; }
+.badge-running { background: #e3f0fb; color: #1565c0; border-color: #9ec5e8; animation: badge-pulse 1.2s ease-in-out infinite; }
+.badge-success { background: #e6f4ea; color: #2e7d32; border-color: #a5d1ac; }
+.badge-failed { background: #fdecea; color: #b00020; border-color: #f2b8b5; }
+.badge-skipped { background: #fafafa; color: #888; border-color: #e0e0e0; }
+@keyframes badge-pulse { 50% { opacity: 0.45; } }
+@media (prefers-reduced-motion: reduce) {
+  .badge-running { animation: none; }
+}
+
+.retry-btn {
+  margin-left: 0.35rem;
+  font: inherit;
+  font-size: 0.75rem;
+  padding: 0.1rem 0.5rem;
+  cursor: pointer;
+}
+.err-line { margin-top: 0.25rem; font-size: 0.75rem; max-width: 16rem; }
+.err-line summary { cursor: pointer; color: #b00020; }
+.err-line div { white-space: pre-wrap; word-break: break-word; }
+
+.load-more { font: inherit; padding: 0.5rem 1rem; cursor: pointer; }
+
+/* Entity chips (PostView). */
+.chips { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.chip {
+  border: 1px solid #ccc;
+  border-radius: 12px;
+  padding: 0.15rem 0.6rem;
+  font-size: 0.8rem;
+  background: #fafafa;
+}
+.chip-type { color: #666; }
