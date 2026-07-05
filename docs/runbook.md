@@ -77,6 +77,28 @@ the drill log below after every drill.
 |------|--------|-------|
 | 2026-07-05 | PASS | First drill, local repo (`backups/restic-repo-local-test`), snapshot `42512a08`; restored newest dump; scratch db verified (posts=0, glossary=12) and dropped; media volume empty so media check trivially satisfied. |
 
+## Pre-VPS deployment hardening checklist (from the M8 security sweep)
+
+Before the stack goes onto the Hetzner VPS, in order:
+
+1. `.env` on the VPS: fresh `FLASK_SECRET_KEY`, `API_TOKEN`,
+   `ANALYST_PASSWORD`, and a generated `POSTGRES_PASSWORD` (never the
+   `change-me` default; the local dev instance was already rotated at M8).
+   The app refuses to boot without `FLASK_SECRET_KEY` (by design).
+2. Real `ANTHROPIC_API_KEY` + `OPENAI_API_KEY`; run the golden-set eval.
+3. B2: create bucket, fill `B2_KEY_ID`/`B2_APP_KEY`/`B2_BUCKET`, set
+   `RESTIC_REPOSITORY=b2:<bucket>:redthread` + `RESTIC_PASSWORD` (keep an
+   off-VPS copy), run `scripts/backup.sh` once, then `scripts/restore_drill.sh`
+   — daily clipping starts only after that drill PASSes.
+4. Reverse proxy (caddy/nginx) with TLS in front of api+client; keep
+   postgres/qdrant bound to localhost; serve the built client from the same
+   origin as the API (session cookie is SameSite=Lax).
+5. Deferred hardening items (accepted for localhost dev, revisit on VPS):
+   containers currently run as root and Chromium uses --no-sandbox (add a
+   non-root USER + drop the flag); refresh outdated dependencies (anthropic,
+   pillow first — pillow decodes untrusted images); rate-limiter now uses
+   Redis storage (done at M8).
+
 ## Service recovery
 
 - After ANY server code change: `docker compose restart api worker` — the
