@@ -15,6 +15,7 @@ client/dist/
 # Media & data (private volume in production; local dev copies)
 media/
 *.dump
+backups/
 
 # Editor / OS
 .DS_Store
