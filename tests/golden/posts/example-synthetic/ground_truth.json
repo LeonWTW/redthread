@@ -1,0 +1,20 @@
+{
+  "synthetic": true,
+  "note": "Synthetic harness-validation entry, not a real XHS post. The PNG was rendered with PIL inside the api container using Hiragino Sans GB (CJK font mounted from the macOS host at generation time; the container image itself ships no fonts). Structure reference only — real golden posts carry analyst-verified ground truth.",
+  "ocr_text": "这个防晒霜很好用",
+  "translation": "This sunscreen works really well.",
+  "entities": [
+    {
+      "text_zh": "防晒霜",
+      "text_en": "sunscreen",
+      "type": "product",
+      "confidence": 1.0
+    }
+  ],
+  "annotation": {
+    "category": "skincare",
+    "trend_type": "product_format",
+    "consumer_signal": "zhongcao",
+    "recommended_action": "monitor"
+  }
+}
