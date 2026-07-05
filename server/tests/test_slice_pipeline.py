@@ -13,12 +13,19 @@ import pytest
 from PIL import Image
 from sqlalchemy.orm import Session
 
-from app import create_app
+from app import create_app, vectors
 from app.db import get_engine
 from app.models import Post
 from app.pipeline.celery_app import celery
 from app.providers import registry
-from app.providers.base import MediaStore, OCRProvider, TranslationProvider
+from app.providers.base import (
+    EmbeddingProvider,
+    Entity,
+    ExtractionProvider,
+    MediaStore,
+    OCRProvider,
+    TranslationProvider,
+)
 
 FAKE_ZH = "测试中文文本 避雷 平替"
 FAKE_EN = "Fake English translation: BiLei warning, PingTi dupe."
@@ -41,6 +48,20 @@ class FakeTranslationProvider(TranslationProvider):
     def translate(self, zh_text, glossary):
         self.calls.append(zh_text)
         return FAKE_EN
+
+
+class FakeExtractionProvider(ExtractionProvider):
+    def extract(self, zh_text, en_text):
+        return [Entity(text_zh="避雷", text_en="BiLei", type="other", confidence=0.9)]
+
+
+class FakeEmbeddingProvider(EmbeddingProvider):
+    @property
+    def dimension(self) -> int:
+        return 1536
+
+    def embed(self, text: str) -> list[float]:
+        return [0.001] * 1536
 
 
 class FakeMediaStore(MediaStore):
@@ -68,6 +89,9 @@ def fake_translator(monkeypatch):
     translator = FakeTranslationProvider()
     monkeypatch.setattr(registry, "get_ocr_provider", lambda: FakeOCRProvider())
     monkeypatch.setattr(registry, "get_translation_provider", lambda: translator)
+    monkeypatch.setattr(registry, "get_extraction_provider", lambda: FakeExtractionProvider())
+    monkeypatch.setattr(registry, "get_embedding_provider", lambda: FakeEmbeddingProvider())
+    monkeypatch.setattr(vectors, "upsert_post", lambda post_id, vector: None)
     store = FakeMediaStore()
     monkeypatch.setattr(registry, "get_media_store", lambda: store)
     return translator
