@@ -1,0 +1,37 @@
+/* Minimal analyst-facing styling: fast, not pretty. */
+body {
+  margin: 0;
+  font-family: system-ui, sans-serif;
+  color: #1a1a1a;
+}
+
+.page { padding: 1.5rem; }
+.page-narrow { max-width: 28rem; }
+
+h1 { font-size: 1.25rem; }
+h2 { font-size: 1rem; }
+h3 { font-size: 0.85rem; color: #555; margin-bottom: 0.25rem; }
+
+.stack { display: flex; flex-direction: column; gap: 0.75rem; }
+.stack label { display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.9rem; }
+.stack input, .stack textarea { font: inherit; padding: 0.4rem; }
+.stack button { align-self: flex-start; font: inherit; padding: 0.4rem 1rem; cursor: pointer; }
+
+.error { color: #b00020; white-space: pre-wrap; }
+.hint { color: #666; font-size: 0.85rem; }
+
+.status-line { display: flex; flex-wrap: wrap; gap: 1rem; font-size: 0.85rem; }
+.step { padding: 0.1rem 0.4rem; border: 1px solid #ccc; border-radius: 3px; }
+.step-success { border-color: #2e7d32; color: #2e7d32; }
+.step-failed { border-color: #b00020; color: #b00020; }
+.step-running { border-color: #1565c0; color: #1565c0; }
+
+.columns { display: flex; gap: 1.5rem; align-items: flex-start; margin-top: 1rem; }
+.col { flex: 1; min-width: 0; }
+.col img { max-width: 100%; display: block; margin-bottom: 0.75rem; border: 1px solid #ddd; }
+.block { margin-bottom: 1rem; }
+.block pre { white-space: pre-wrap; word-break: break-word; font: inherit; margin: 0; }
+
+@media (max-width: 800px) {
+  .columns { flex-direction: column; }
+}
