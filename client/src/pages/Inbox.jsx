@@ -12,6 +12,10 @@ function hasActiveStep(post) {
   return STEPS.some((step) => ACTIVE.includes(post[`${step}_status`]))
 }
 
+function hasFailedStep(post) {
+  return STEPS.some((step) => post[`${step}_status`] === 'failed')
+}
+
 function formatCapturedAt(iso) {
   if (!iso) return ''
   const d = new Date(iso)
@@ -155,7 +159,14 @@ export default function Inbox() {
     return (
       <main className="page">
         <h1>Inbox</h1>
-        <p>Loading…</p>
+        <div className="skeleton-stack" aria-label="Loading">
+          <div className="skeleton skeleton-row" />
+          <div className="skeleton skeleton-row" />
+          <div className="skeleton skeleton-row" />
+          <div className="skeleton skeleton-row" />
+          <div className="skeleton skeleton-row" />
+          <div className="skeleton skeleton-row" />
+        </div>
       </main>
     )
   }
@@ -184,7 +195,7 @@ export default function Inbox() {
             </thead>
             <tbody>
               {posts.map((post) => (
-                <tr key={post.id}>
+                <tr key={post.id} className={hasFailedStep(post) ? 'row-failed' : undefined}>
                   <td>
                     {post.first_image_url ? (
                       <img className="inbox-thumb" src={post.first_image_url} alt="" />

@@ -94,7 +94,7 @@ function CiteRow({ citation, attached, onAttach, onRemove }) {
         {attached ? 'Attached' : 'Attach'}
       </button>
       {onRemove && (
-        <button type="button" onClick={() => onRemove(citation.post_id)}>
+        <button type="button" className="btn-danger" onClick={() => onRemove(citation.post_id)}>
           Remove
         </button>
       )}
@@ -594,7 +594,7 @@ function BlockView({
         <button type="button" onClick={() => setEditing(true)}>
           Edit
         </button>
-        <button type="button" onClick={remove} disabled={deleting}>
+        <button type="button" className="btn-danger" onClick={remove} disabled={deleting}>
           {deleting ? 'Deleting…' : 'Delete'}
         </button>
         {isTrend && !addingChild && (

@@ -54,6 +54,7 @@ function ScreenshotsSection() {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [processing, setProcessing] = useState(false)
+  const [dragOver, setDragOver] = useState(false)
   const postIdRef = useRef(null)
   const navigate = useNavigate()
 
@@ -61,8 +62,8 @@ function ScreenshotsSection() {
   const anyFailed = statuses.some((s) => s === 'failed')
   const started = statuses.some((s) => s !== 'queued')
 
-  function onSelect(e) {
-    const picked = Array.from(e.target.files || [])
+  function handleFiles(fileList) {
+    const picked = Array.from(fileList || [])
     setError('')
     if (picked.length > MAX_FILES) {
       setError(`Too many files: max ${MAX_FILES} images per capture.`)
@@ -75,6 +76,10 @@ function ScreenshotsSection() {
     setAlreadyCaptured(null)
     setPostId(null)
     postIdRef.current = null
+  }
+
+  function onSelect(e) {
+    handleFiles(e.target.files)
   }
 
   function setStatusAt(index, value) {
@@ -170,9 +175,25 @@ function ScreenshotsSection() {
     <section className="section">
       <h2>Screenshots</h2>
       <form onSubmit={onSubmit} className="stack">
-        <label>
-          Screenshots (PNG / JPEG / WebP, max {MAX_FILES})
+        <label
+          className={dragOver ? 'drop-zone drag-over' : 'drop-zone'}
+          onDragOver={(e) => {
+            e.preventDefault()
+            if (!busy && !processing) setDragOver(true)
+          }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={(e) => {
+            e.preventDefault()
+            setDragOver(false)
+            // Same guard as the picker input's disabled state: no new files
+            // mid-upload, or the in-flight queue would be reset.
+            if (busy || processing) return
+            handleFiles(e.dataTransfer.files)
+          }}
+        >
           <input type="file" accept={ACCEPT} multiple onChange={onSelect} disabled={busy || processing} />
+          <span>Tap to choose screenshots — or drop them here</span>
+          <span className="drop-zone-hint">PNG · JPEG · WebP, up to {MAX_FILES} files</span>
         </label>
         <label>
           XHS URL (optional, for dedup)
@@ -379,7 +400,7 @@ function CsvSection() {
 export default function Capture() {
   return (
     <main className="page page-narrow">
-      <h1>RedThread — Capture</h1>
+      <h1>Capture</h1>
       <ScreenshotsSection />
       <UrlSection />
       <CsvSection />

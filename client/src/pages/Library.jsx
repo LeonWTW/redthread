@@ -55,7 +55,7 @@ function AnnotationBadges({ annotation }) {
   return (
     <div className="library-badges">
       {badges.map((label) => (
-        <span key={label} className="badge badge-pending">
+        <span key={label} className="chip">
           {label}
         </span>
       ))}
@@ -89,7 +89,7 @@ function ResultCard({ result, onDelete, onAddToTray, trayMsg, deleting, deleteEr
           <button type="button" onClick={() => onAddToTray(result)}>
             Add to report
           </button>
-          <button type="button" onClick={() => onDelete(result.id)} disabled={deleting}>
+          <button type="button" className="btn-danger" onClick={() => onDelete(result.id)} disabled={deleting}>
             {deleting ? 'Deleting…' : 'Delete'}
           </button>
           {trayMsg && <span className="hint">{trayMsg}</span>}
@@ -173,6 +173,10 @@ export default function Library() {
     <main className="page">
       <h1>Library</h1>
       <form className="library-search" onSubmit={search}>
+        <svg className="search-icon" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <circle cx="7" cy="7" r="4.5" stroke="currentColor" strokeWidth="1.5" />
+          <path d="M10.5 10.5 14 14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        </svg>
         <input
           type="search"
           value={query}

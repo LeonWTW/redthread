@@ -295,7 +295,9 @@ export default function Triage() {
       <div
         className={editing ? 'hotkey-bar hotkey-off' : 'hotkey-bar hotkey-on'}
         title={editing ? 'Hotkeys off while editing — Esc to resume' : 'Hotkeys active'}
-      />
+      >
+        {editing ? 'Editing — Esc resumes hotkeys' : 'Hotkeys on'}
+      </div>
       {error && <p className="error">{error}</p>}
       <div className="triage-grid">
         <section className="triage-images">
@@ -304,7 +306,6 @@ export default function Triage() {
               {index + 1} of {queue.length}
             </span>
             <span className="queue-timer">{formatElapsed(elapsed)}</span>
-            <span className="hint">{editing ? 'editing — Esc for hotkeys' : 'hotkeys on'}</span>
           </div>
           <div className="triage-image-scroll">
             {images.length === 0 && <p className="hint">No images.</p>}
@@ -380,7 +381,7 @@ export default function Triage() {
                     }
                     onClick={() => toggle(group.field, option.value)}
                   >
-                    <span className="anno-key">[{option.key.toUpperCase()}]</span> {option.label}
+                    <span className="anno-key">{option.key.toUpperCase()}</span> {option.label}
                   </button>
                 ))}
               </div>
@@ -398,10 +399,10 @@ export default function Triage() {
           </div>
           <div className="anno-actions">
             <button type="button" className="anno-save" onClick={saveAndNext} disabled={saving}>
-              {saving ? 'Saving…' : 'Save & Next'} <span className="anno-key">[Enter]</span>
+              {saving ? 'Saving…' : 'Save & Next'} <span className="anno-key">↵</span>
             </button>
             <button type="button" className="anno-skip" onClick={skip} disabled={saving}>
-              Skip <span className="anno-key">[Backspace]</span>
+              Skip <span className="anno-key">⌫</span>
             </button>
           </div>
         </section>
