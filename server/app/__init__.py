@@ -23,7 +23,10 @@ def create_app(config_overrides: dict | None = None) -> Flask:
     app.config.update(
         SECRET_KEY=os.environ.get("FLASK_SECRET_KEY"),
         SESSION_COOKIE_HTTPONLY=True,
-        SESSION_COOKIE_SECURE=True,
+        # COOKIE_SECURE=0 is for plain-http local trials only (Safari drops
+        # Secure cookies over http even on localhost). Production behind TLS
+        # keeps the secure default.
+        SESSION_COOKIE_SECURE=os.environ.get("COOKIE_SECURE", "1") != "0",
         SESSION_COOKIE_SAMESITE="Lax",
         PERMANENT_SESSION_LIFETIME=60 * 60 * 24 * 30,  # 30 days (kickoff decision 11)
         # Flask enforces this per REQUEST, not per file; the sequential mobile
