@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- RedThread thread-stitch R (docs/plans/003). Standalone favicon: literal
+       brand hex, slightly heavier stroke for 16px legibility. -->
+  <circle cx="7" cy="28" r="2.2" fill="#c41e2a"/>
+  <path d="M7 28 V6 H15.5 C21 6 24 8.6 24 12.2 C24 15.8 21 18.4 15.5 18.4 H10.5 L20.5 28 Q22.5 30 25.5 30 H27"
+        fill="none" stroke="#c41e2a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="29" cy="30" r="2.2" fill="#c41e2a"/>
+</svg>

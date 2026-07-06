@@ -1,0 +1,71 @@
+/* RedThread design tokens — "Editorial Intelligence" (docs/plans/003).
+   Paper + ink + a single thread-red accent; New York serif display, SF Pro
+   UI, SF Mono data. Light theme only BY DESIGN: dark mode is a locked
+   anti-requirement (CLAUDE.md §5) — do not add prefers-color-scheme blocks. */
+
+:root {
+  /* Surfaces */
+  --paper: #faf9f6;
+  --paper-raised: #ffffff;
+  --paper-sunken: #f3f1ec;
+
+  /* Ink */
+  --ink: #16130f;
+  --ink-2: #57534b;
+  --ink-3: #8a857b;
+
+  /* Hairlines */
+  --line: #e7e3db;
+  --line-strong: #d6d1c6;
+
+  /* Brand thread */
+  --thread: #c41e2a;
+  --thread-deep: #9e1622;
+  --thread-tint: #f9eceb;
+
+  /* Status triplets: text / fill / line. Badges always pair a tinted fill
+     with the status word, so brand red (bare accents) stays unambiguous. */
+  --ok: #2e7d32;
+  --ok-bg: #eaf4ec;
+  --ok-line: #b7d8bc;
+  --run: #1e5fa8;
+  --run-bg: #e9f1fa;
+  --run-line: #b4cde8;
+  --fail: #b3261e;
+  --fail-bg: #fbedeb;
+  --fail-line: #efc2bd;
+  --warn: #9a6b00;
+  --warn-bg: #fbf3dc;
+  --warn-line: #e8d49a;
+
+  /* Type */
+  --font-display: ui-serif, "New York", Georgia, "Times New Roman", serif;
+  --font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI",
+    system-ui, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas,
+    monospace;
+
+  /* Radius */
+  --r-ctl: 6px;
+  --r-card: 10px;
+  --r-pill: 999px;
+
+  /* Shadows (warm ink, sparse) */
+  --shadow-1: 0 1px 2px color-mix(in srgb, var(--ink) 4%, transparent),
+    0 1px 3px color-mix(in srgb, var(--ink) 6%, transparent);
+  --shadow-2: 0 2px 4px color-mix(in srgb, var(--ink) 5%, transparent),
+    0 8px 24px color-mix(in srgb, var(--ink) 8%, transparent);
+  --shadow-panel: -16px 0 40px color-mix(in srgb, var(--ink) 12%, transparent);
+
+  /* Motion */
+  --dur-fast: 120ms;
+  --dur: 180ms;
+  --dur-slow: 260ms;
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* Layout */
+  --nav-h: 56px;
+
+  /* Focus */
+  --focus-ring: 0 0 0 3px color-mix(in srgb, var(--thread) 16%, transparent);
+}

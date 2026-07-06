@@ -1,5 +1,6 @@
-import { NavLink, useNavigate } from 'react-router-dom'
+import { Link, NavLink, useNavigate } from 'react-router-dom'
 import { api } from '../api.js'
+import Logo from './Logo.jsx'
 
 // Shared top nav for every screen except Login. The app has exactly five
 // screens (Inbox, Triage, Library, Report Editor, Export Preview) plus the
@@ -27,6 +28,9 @@ export default function Nav() {
 
   return (
     <nav className="topnav" aria-label="Main navigation">
+      <Link to="/" className="nav-brand" aria-label="RedThread home">
+        <Logo size={22} withWordmark />
+      </Link>
       {LINKS.map((link) => (
         <NavLink
           key={link.to}
